@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>StreamFlix</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #16161d; color: #E8E8E8; font-family: sans-serif; overflow-x: hidden; }
+
+    #loader {
+      position: fixed; inset: 0; background: #16161d;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; transition: opacity 0.5s ease;
+    }
+    .loader-ring {
+      width: 70px; height: 70px;
+      border: 3px solid rgba(201,168,76,0.1);
+      border-top: 3px solid #C9A84C;
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    .loader-logo { position: absolute; color: #C9A84C; font-size: 1.4rem; font-weight: 900; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    header {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 40px;
+      background: linear-gradient(to bottom, rgba(22,22,29,0.98) 0%, transparent 100%);
+      z-index: 100;
+    }
+    .logo { color: #C9A84C; font-size: 1.8rem; font-weight: 900; letter-spacing: 2px; cursor: pointer; }
+    .nav-links { display: flex; align-items: center; gap: 30px; }
+    .nav-links a { color: #E8E8E8; text-decoration: none; font-size: 0.95rem; }
+    .nav-links a:hover { color: #C9A84C; }
+    .search-bar {
+      position: relative; display: flex; align-items: center;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 25px; padding: 8px 18px; gap: 8px;
+    }
+    .search-bar input {
+      background: none; border: none; color: #E8E8E8;
+      outline: none; width: 220px; font-size: 0.9rem;
+    }
+    .search-bar input::placeholder { color: #aaa; }
+    .search-results {
+      position: absolute; top: 110%; left: 0; right: 0;
+      background: #1a1a24; border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 12px; overflow: hidden; z-index: 200;
+      max-height: 400px; overflow-y: auto;
+    }
+    .search-result-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 15px; cursor: pointer; transition: background 0.2s;
+    }
+    .search-result-item:hover { background: rgba(201,168,76,0.1); }
+    .search-result-item img { width: 40px; height: 60px; border-radius: 4px; object-fit: cover; }
+    .search-result-titre { font-size: 0.9rem; color: #E8E8E8; font-weight: 600; }
+    .search-result-meta { font-size: 0.75rem; color: #888; margin-top: 2px; }
+    .btn-connexion {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: white; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 0.9rem;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .hero { height: 100vh; position: relative; overflow: hidden; }
+    .hero-slide {
+      position: absolute; inset: 0; background-size: cover;
+      background-position: center; opacity: 0; transition: opacity 1.2s ease-in-out;
+    }
+    .hero-slide.active { opacity: 1; }
+    .hero-slide::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        linear-gradient(to right, rgba(22,22,29,0.97) 30%, rgba(22,22,29,0.4) 60%, transparent 100%),
+        linear-gradient(to top, rgba(22,22,29,1) 0%, transparent 50%);
+    }
+    .hero-content { position: absolute; bottom: 120px; left: 60px; max-width: 550px; z-index: 2; }
+    .hero-title {
+      font-size: 4rem; font-weight: 900; color: #C9A84C;
+      text-transform: uppercase; letter-spacing: 3px; margin-bottom: 15px; line-height: 1.1;
+    }
+    .hero-desc { color: #ccc; line-height: 1.7; margin-bottom: 25px; font-size: 0.95rem; }
+    .hero-buttons { display: flex; gap: 15px; }
+    .btn-watch {
+      background: #cc0000; color: white; border: none; padding: 14px 32px;
+      font-size: 1rem; border-radius: 25px; cursor: pointer; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 4px 20px rgba(204,0,0,0.4); transition: background 0.2s;
+    }
+    .btn-watch:hover { background: #e00000; }
+    .btn-info {
+      background: rgba(255,255,255,0.15); color: white; border: none;
+      padding: 14px 32px; font-size: 1rem; border-radius: 25px;
+      cursor: pointer; font-weight: 600; transition: background 0.2s;
+    }
+    .btn-info:hover { background: rgba(255,255,255,0.25); }
+
+    .hero-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: rgba(201,168,76,0.2); color: white;
+      border: 1px solid rgba(201,168,76,0.3); font-size: 2rem;
+      width: 50px; height: 50px; cursor: pointer; border-radius: 50%;
+      z-index: 10; transition: background 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hero-arrow:hover { background: rgba(201,168,76,0.5); }
+    .arrow-left { left: 20px; }
+    .arrow-right { right: 20px; }
+    .hero-dots { position: absolute; bottom: 30px; right: 60px; display: flex; gap: 8px; z-index: 10; }
+    .dot { height: 4px; width: 20px; border-radius: 2px; background: rgba(255,255,255,0.3); cursor: pointer; transition: all 0.3s; }
+    .dot.active { background: #C9A84C; width: 35px; }
+
+    .section { padding: 20px 40px; }
+    .section-title { color: #C9A84C; margin-bottom: 15px; font-size: 1.2rem; font-weight: 700; }
+    .films { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+    .films::-webkit-scrollbar { height: 3px; }
+    .films::-webkit-scrollbar-thumb { background: #C9A84C44; border-radius: 2px; }
+
+    .film-card { flex-shrink: 0; cursor: pointer; position: relative; }
+    .film-card img {
+      width: 170px; height: 255px; border-radius: 10px; display: block;
+      transition: transform 0.2s; border: 2px solid transparent;
+    }
+    .film-card:hover img { transform: scale(1.05); border-color: #C9A84C; }
+    .film-card p {
+      width: 170px; font-size: 0.75rem; color: #999; margin-top: 6px;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
+    .badge {
+      position: absolute; top: 8px; left: 8px; background: #cc0000;
+      color: white; font-size: 0.6rem; padding: 3px 7px; border-radius: 4px; font-weight: 700;
+    }
+
+    /* TOP 10 */
+    .top10-card { flex-shrink: 0; cursor: pointer; display: flex; align-items: flex-end; }
+    .top10-number {
+      font-size: 8rem; font-weight: 900; color: transparent;
+      -webkit-text-stroke: 2px rgba(201,168,76,0.4);
+      line-height: 1; margin-right: -20px; z-index: 1;
+    }
+    .top10-card img {
+      width: 150px; height: 225px; border-radius: 10px;
+      border: 2px solid transparent; transition: all 0.2s; position: relative; z-index: 2;
+    }
+    .top10-card:hover img { transform: scale(1.05); border-color: #C9A84C; }
+
+    /* PLATEFORMES */
+    .plateformes { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 8px; }
+    .plateformes::-webkit-scrollbar { height: 3px; }
+    .plateformes::-webkit-scrollbar-thumb { background: #C9A84C44; border-radius: 2px; }
+    .plateforme-card {
+      flex-shrink: 0; width: 160px; height: 90px; border-radius: 12px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 900; letter-spacing: 1px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 1px solid rgba(255,255,255,0.1); text-align: center; padding: 10px;
+    }
+    .plateforme-card:hover { transform: scale(1.05); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+
+    /* PAGE PLATEFORME */
+    #page-plateforme { min-height: 100vh; }
+    .plateforme-hero {
+      height: 40vh; display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .plateforme-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 0%, #16161d 100%);
+    }
+    .plateforme-logo-grand {
+      font-size: 6rem; font-weight: 900; letter-spacing: 5px;
+      position: relative; z-index: 2; text-align: center;
+    }
+    .plateforme-filtres {
+      display: flex; gap: 12px; padding: 0 40px 20px;
+      align-items: center; flex-wrap: wrap;
+    }
+    .filtre-btn {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      color: #E8E8E8; padding: 8px 20px; border-radius: 20px;
+      cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+    }
+    .filtre-btn:hover, .filtre-btn.active {
+      background: #cc0000; border-color: #cc0000; color: white;
+    }
+    .plateforme-grille {
+      display: flex; flex-wrap: wrap; gap: 15px;
+      padding: 0 40px 40px;
+    }
+    .plateforme-grille .film-card img {
+      width: 170px; height: 255px;
+    }
+    .btn-charger-plus {
+      background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3);
+      color: #C9A84C; padding: 12px 30px; border-radius: 25px;
+      cursor: pointer; font-size: 0.95rem; font-weight: 600;
+      margin: 20px auto 40px; display: block; transition: background 0.2s;
+    }
+    .btn-charger-plus:hover { background: rgba(201,168,76,0.25); }
+    .btn-retour-plateforme {
+      position: absolute; top: 90px; left: 40px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: white; width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; font-size: 1.3rem; display: flex;
+      align-items: center; justify-content: center; z-index: 10;
+    }
+
+    /* PAGE FILM */
+    #page-film { min-height: 100vh; }
+    .film-hero {
+      position: relative; height: 100vh; background-size: cover;
+      background-position: center top; display: flex; align-items: center;
+    }
+    .film-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        linear-gradient(to right, rgba(22,22,29,0.98) 35%, rgba(22,22,29,0.6) 60%, rgba(22,22,29,0.1) 100%),
+        linear-gradient(to top, rgba(22,22,29,1) 0%, transparent 40%);
+    }
+    .film-hero-content { position: relative; z-index: 2; padding: 0 60px; max-width: 600px; margin-top: 60px; }
+    .film-type-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(204,0,0,0.2); border: 1px solid rgba(204,0,0,0.4);
+      color: #ff6666; padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 15px;
+    }
+    .film-hero-titre { font-size: 4rem; font-weight: 900; color: white; margin-bottom: 15px; line-height: 1.1; }
+    .film-etoiles { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .film-annee { color: #aaa; font-size: 0.95rem; }
+    .film-hero-desc { color: #ccc; line-height: 1.7; margin-bottom: 20px; font-size: 0.95rem; }
+    .film-hero-genres { display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; }
+    .film-hero-genres span { color: #888; font-size: 0.85rem; }
+    .film-hero-actions { display: flex; gap: 12px; align-items: center; }
+    .btn-regarder {
+      background: #cc0000; color: white; border: none; padding: 12px 28px;
+      border-radius: 25px; cursor: pointer; font-weight: 700; font-size: 1rem;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 4px 20px rgba(204,0,0,0.4); transition: background 0.2s;
+    }
+    .btn-regarder:hover { background: #e00000; }
+    .btn-source {
+      background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3);
+      color: #C9A84C; padding: 12px 20px; border-radius: 25px;
+      cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: background 0.2s;
+    }
+    .btn-source:hover { background: rgba(201,168,76,0.25); }
+    .btn-rond {
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: white; width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .btn-rond:hover { background: rgba(255,255,255,0.25); }
+    .btn-retour-film {
+      position: absolute; top: 90px; left: 40px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      color: white; width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; font-size: 1.3rem; display: flex;
+      align-items: center; justify-content: center; z-index: 10;
+    }
+    .similaires-section { padding: 40px 60px; background: #16161d; }
+    .similaires-section h2 { color: #C9A84C; font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; }
+
+    /* SOURCES */
+    #sources-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+      z-index: 2000; display: flex; align-items: center; justify-content: center;
+    }
+    .sources-modal {
+      background: #1a1a24; border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 16px; width: 90%; max-width: 500px;
+      max-height: 80vh; overflow-y: auto; padding: 25px;
+    }
+    .sources-modal h2 {
+      color: white; font-size: 1.3rem; margin-bottom: 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sources-modal h2 button { background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer; }
+    .source-category { margin-bottom: 15px; }
+    .source-category-title { color: #888; font-size: 0.75rem; letter-spacing: 1px; margin-bottom: 10px; text-transform: uppercase; }
+    .source-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 8px;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .source-item:hover { background: rgba(201,168,76,0.1); border-color: rgba(201,168,76,0.3); }
+    .source-item.active { background: rgba(204,0,0,0.15); border-color: rgba(204,0,0,0.5); }
+    .source-item-name { color: #E8E8E8; font-size: 0.95rem; }
+    .source-item-name.active { color: #cc0000; font-weight: 700; }
+    .source-badge { background: rgba(255,255,255,0.1); color: #aaa; font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; }
+    .source-badge.vf { background: rgba(0,100,255,0.2); color: #6af; }
+    .source-badge.vostfr { background: rgba(0,200,100,0.2); color: #6fa; }
+    .source-badge.actif { background: rgba(204,0,0,0.3); color: #f88; }
+
+    footer {
+      background: #0d0d12; border-top: 1px solid rgba(201,168,76,0.1);
+      padding: 40px 60px; display: flex; justify-content: space-between;
+      align-items: center; gap: 40px; flex-wrap: wrap;
+    }
+    .footer-left { color: #555; font-size: 0.85rem; max-width: 500px; line-height: 1.7; }
+    .footer-right { color: #444; font-size: 0.85rem; white-space: nowrap; }
+    .footer-right span { color: #C9A84C; font-weight: 700; }
+
+    #overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.97);
+      z-index: 1000; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    #overlay iframe { width: 90%; height: 80%; border-radius: 12px; border: none; }
+    #overlay .fermer {
+      position: absolute; top: 20px; right: 30px;
+      background: none; border: none; color: white; font-size: 2rem; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loader">
+    <div class="loader-ring"></div>
+    <div class="loader-logo">🎬</div>
+  </div>
+
+  <header>
+    <div class="logo" onclick="allerAccueil()">🎬 STREAMFLIX</div>
+    <div class="nav-links">
+      <a href="#" onclick="allerAccueil()">🎬 Films</a>
+      <a href="#">📺 Séries</a>
+      <a href="#">✨ Anime</a>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+      <div class="search-bar">
+        <span>🔍</span>
+        <input type="text" id="search-input" placeholder="Rechercher un film, une série...">
+        <div class="search-results" id="search-results" style="display:none;"></div>
+      </div>
+      <button class="btn-connexion">👤 Connexion</button>
+    </div>
+  </header>
+
+  <!-- ACCUEIL -->
+  <div id="page-accueil" class="page active">
+    <div class="hero" id="hero">
+      <button class="hero-arrow arrow-left" onclick="changerSlide(-1)">‹</button>
+      <button class="hero-arrow arrow-right" onclick="changerSlide(1)">›</button>
+      <div class="hero-dots" id="dots"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🏆 Top 10 du jour</div>
+      <div class="films" id="top10"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎬 Univers & Plateformes</div>
+      <div class="plateformes">
+        <div class="plateforme-card" onclick="allerPlateforme('netflix')" style="background:linear-gradient(135deg,#e50914,#221f1f);">NETFLIX</div>
+        <div class="plateforme-card" onclick="allerPlateforme('prime')" style="background:linear-gradient(135deg,#00a8e0,#003d6b);">PRIME VIDEO</div>
+        <div class="plateforme-card" onclick="allerPlateforme('disney')" style="background:linear-gradient(135deg,#1a2e8b,#0d1a5c);">DISNEY +</div>
+        <div class="plateforme-card" onclick="allerPlateforme('hbo')" style="background:linear-gradient(135deg,#6a0dad,#3d0070);">HBO MAX</div>
+        <div class="plateforme-card" onclick="allerPlateforme('apple')" style="background:linear-gradient(135deg,#555,#111);">APPLE TV+</div>
+        <div class="plateforme-card" onclick="allerPlateforme('paramount')" style="background:linear-gradient(135deg,#0064ff,#003899);">PARAMOUNT+</div>
+        <div class="plateforme-card" onclick="allerPlateforme('hulu')" style="background:linear-gradient(135deg,#1ce783,#0a6b3a); color:#000;">HULU</div>
+        <div class="plateforme-card" onclick="allerPlateforme('peacock')" style="background:linear-gradient(135deg,#ff6b35,#8b2500);">PEACOCK</div>
+        <div class="plateforme-card" onclick="allerPlateforme('marvel')" style="background:linear-gradient(135deg,#e23636,#8b0000);">MARVEL</div>
+        <div class="plateforme-card" onclick="allerPlateforme('dc')" style="background:linear-gradient(135deg,#1a3a6b,#0d1f3c);">DC</div>
+        <div class="plateforme-card" onclick="allerPlateforme('starwars')" style="background:linear-gradient(135deg,#111,#333); color:#ffe81f;">STAR WARS</div>
+        <div class="plateforme-card" onclick="allerPlateforme('pixar')" style="background:linear-gradient(135deg,#2e86ab,#1a4a6b);">PIXAR</div>
+        <div class="plateforme-card" onclick="allerPlateforme('anime')" style="background:linear-gradient(135deg,#ff6b6b,#8b0a50);">ANIME</div>
+        <div class="plateforme-card" onclick="allerPlateforme('crunchyroll')" style="background:linear-gradient(135deg,#f47521,#8b3a00);">CRUNCHYROLL</div>
+        <div class="plateforme-card" onclick="allerPlateforme('canal')" style="background:linear-gradient(135deg,#333,#111);">CANAL+</div>
+        <div class="plateforme-card" onclick="allerPlateforme('arte')" style="background:linear-gradient(135deg,#c00,#600);">ARTE</div>
+        <div class="plateforme-card" onclick="allerPlateforme('starz')" style="background:linear-gradient(135deg,#1a1a2e,#16213e);">STARZ</div>
+        <div class="plateforme-card" onclick="allerPlateforme('showtime')" style="background:linear-gradient(135deg,#cc0000,#660000);">SHOWTIME</div>
+      </div>
+    </div>
+
+    <div class="section" id="section-univers" style="display:none;">
+      <div class="section-title" id="univers-titre"></div>
+      <div class="films" id="univers-films"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🔥 Tendances cette semaine</div>
+      <div class="films" id="tendances"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🏛️ Franchises Légendaires</div>
+      <div class="films" id="sagas"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🆕 Derniers ajouts</div>
+      <div class="films" id="derniers"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📺 Dernières séries</div>
+      <div class="films" id="dernieres-series"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">💥 Action</div>
+      <div class="films" id="action"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">😱 Horreur</div>
+      <div class="films" id="horreur"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">😂 Comédie</div>
+      <div class="films" id="comedie"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🚀 Science-Fiction</div>
+      <div class="films" id="scifi"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">❤️ Romance</div>
+      <div class="films" id="romance"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎭 Drame</div>
+      <div class="films" id="drame"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🔍 Thriller</div>
+      <div class="films" id="thriller"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🧒 Animation</div>
+      <div class="films" id="animation"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🇫🇷 Films Français</div>
+      <div class="films" id="francais"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🇰🇷 Films Coréens</div>
+      <div class="films" id="coreens"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🇯🇵 Films Japonais</div>
+      <div class="films" id="japonais"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎬 Prochainement au cinéma</div>
+      <div class="films" id="upcoming"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">⭐ Les mieux notés</div>
+      <div class="films" id="toprated"></div>
+    </div>
+
+    <footer>
+      <p class="footer-left">StreamFlix n'héberge aucun fichier sur ses serveurs. Nous fournissons uniquement des liens vers des services externes. Nous ne sommes pas responsables du contenu hébergé par ces services tiers. En cas de problème avec la justice, veuillez contacter directement les hébergeurs des contenus concernés.</p>
+      <p class="footer-right">© 2026 StreamFlix — depuis 2026 par <span>epydemyy</span></p>
+    </footer>
+  </div>
+
+  <!-- PAGE PLATEFORME -->
+  <div id="page-plateforme" class="page">
+    <button class="btn-retour-plateforme" onclick="retourPrecedent()">←</button>
+    <div class="plateforme-hero" id="plateforme-hero">
+      <div class="plateforme-logo-grand" id="plateforme-logo"></div>
+    </div>
+    <div class="section">
+      <div class="section-title" id="plateforme-tendances-titre">🔥 Tendances</div>
+      <div class="films" id="plateforme-tendances"></div>
+    </div>
+    <div class="plateforme-filtres">
+      <button class="filtre-btn active" onclick="filtrerPlateforme('tout')">Tout</button>
+      <button class="filtre-btn" onclick="filtrerPlateforme('movie')">🎬 Films</button>
+      <button class="filtre-btn" onclick="filtrerPlateforme('tv')">📺 Séries</button>
+    </div>
+    <div class="plateforme-grille" id="plateforme-grille"></div>
+    <button class="btn-charger-plus" id="btn-charger-plus" onclick="chargerPlusPage()">Charger plus ↓</button>
+  </div>
+
+  <!-- PAGE FILM -->
+  <div id="page-film" class="page">
+    <button class="btn-retour-film" onclick="retourPrecedent()">←</button>
+    <div class="film-hero" id="film-hero">
+      <div class="film-hero-content">
+        <div class="film-type-badge" id="film-type-badge">🎬 Film</div>
+        <h1 class="film-hero-titre" id="film-titre"></h1>
+        <div class="film-etoiles">
+          <div id="film-etoiles"></div>
+          <span class="film-annee" id="film-annee"></span>
+        </div>
+        <div class="film-hero-actions">
+          <button class="btn-regarder" id="btn-lecture">▶ Regarder</button>
+          <button class="btn-source" onclick="ouvrirSources()">🎬 Changer de source</button>
+          <button class="btn-rond">♡</button>
+        </div>
+        <p class="film-hero-desc" id="film-synopsis" style="margin-top:20px;"></p>
+        <div class="film-hero-genres" id="film-genres"></div>
+      </div>
+    </div>
+    <div class="similaires-section">
+      <h2>🎬 Films similaires</h2>
+      <div class="films" id="similaires"></div>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzMzAzNDY3MjE2ZmM2YzU4ZWRkZjQ4ZmE1MGUxN2RlMCIsIm5iZiI6MTc3NjgzNTQ2Ni44NjgsInN1YiI6IjY5ZTg1YjhhM2M1MmRmMDVjN2FhZTczMSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.yC7SOEcJ8WR0BRBsrbtGDSPEzXLRk4TeiVTNgfFC5iA'
+    const headers = { Authorization: `Bearer ${TOKEN}` }
+    let heroFilms = [], slideActuel = 0, autoSlide
+    let pagePrecedente = 'page-accueil'
+    let searchTimeout
+    let filmActuelId = null, filmActuelType = null, sourceActuelle = 0
+    let plateformeActuelle = null, platePage = 1, plateFiltreActuel = 'tout'
+    let plateformeResultats = []
+
+    const SOURCES = [
+      { categorie: '⭐ LECTEUR PRINCIPAL', items: [
+        { nom: '🌟 StreamFlix Player', badge: 'ACTIF', url: (id, type) => `https://vidsrc.to/embed/${type}/${id}` }
+      ]},
+      { categorie: '🎬 LECTEURS MULTI', items: [
+        { nom: 'Multi Player 1', badge: 'VF/VO', url: (id, type) => `https://vidsrc.me/embed/${type}?tmdb=${id}` },
+        { nom: 'Multi Player 2', badge: 'VF/VO', url: (id, type) => `https://embed.su/embed/${type}/${id}` },
+        { nom: 'Multi Player 3', badge: 'VF/VO', url: (id, type) => `https://multiembed.mov/?video_id=${id}&tmdb=1` },
+        { nom: 'Multi Player 4', badge: 'VF/VO', url: (id, type) => `https://www.2embed.cc/embed/${id}` },
+      ]},
+      { categorie: '🇫🇷 LECTEURS VF', items: [
+        { nom: 'VF Player 1', badge: 'VF', url: (id, type) => `https://frembed.pro/api/film.php?id=${id}` },
+        { nom: 'VF Player 2', badge: 'VF', url: (id, type) => `https://vidsrc.fr/embed/${type}/${id}` },
+      ]},
+      { categorie: '🌍 LECTEURS VO/VOSTFR', items: [
+        { nom: 'VO Player 1', badge: 'VOSTFR', url: (id, type) => `https://vidsrc.xyz/embed/${type}/${id}` },
+        { nom: 'VO Player 2', badge: 'VOSTFR', url: (id, type) => `https://autoembed.co/embed/${type}/${id}` },
+      ]}
+    ]
+
+    const PLATEFORMES = {
+      netflix:    { nom: 'NETFLIX',    couleur: '#e50914', bg: 'linear-gradient(135deg,#e50914,#221f1f)', companyId: 213, keyword: 'netflix' },
+      prime:      { nom: 'PRIME VIDEO', couleur: '#00a8e0', bg: 'linear-gradient(135deg,#00a8e0,#003d6b)', companyId: 1024, keyword: 'amazon prime' },
+      disney:     { nom: 'DISNEY +',   couleur: '#1a6fff', bg: 'linear-gradient(135deg,#1a2e8b,#0d1a5c)', companyId: 2, keyword: 'disney' },
+      hbo:        { nom: 'HBO MAX',    couleur: '#9b59b6', bg: 'linear-gradient(135deg,#6a0dad,#3d0070)', companyId: 49, keyword: 'hbo' },
+      apple:      { nom: 'APPLE TV+',  couleur: '#aaa', bg: 'linear-gradient(135deg,#555,#111)', companyId: 2552, keyword: 'apple tv' },
+      paramount:  { nom: 'PARAMOUNT+', couleur: '#0064ff', bg: 'linear-gradient(135deg,#0064ff,#003899)', companyId: 4, keyword: 'paramount' },
+      hulu:       { nom: 'HULU',       couleur: '#1ce783', bg: 'linear-gradient(135deg,#1ce783,#0a6b3a)', companyId: 453, keyword: 'hulu' },
+      peacock:    { nom: 'PEACOCK',    couleur: '#ff6b35', bg: 'linear-gradient(135deg,#ff6b35,#8b2500)', companyId: 3353, keyword: 'peacock' },
+      marvel:     { nom: 'MARVEL',     couleur: '#e23636', bg: 'linear-gradient(135deg,#e23636,#8b0000)', companyId: 420, keyword: 'marvel' },
+      dc:         { nom: 'DC',         couleur: '#1a6fff', bg: 'linear-gradient(135deg,#1a3a6b,#0d1f3c)', companyId: 429, keyword: 'dc comics' },
+      starwars:   { nom: 'STAR WARS',  couleur: '#ffe81f', bg: 'linear-gradient(135deg,#111,#333)', companyId: 10194, keyword: 'star wars' },
+      pixar:      { nom: 'PIXAR',      couleur: '#2e86ab', bg: 'linear-gradient(135deg,#2e86ab,#1a4a6b)', companyId: 3, keyword: 'pixar' },
+      anime:      { nom: 'ANIME',      couleur: '#ff6b6b', bg: 'linear-gradient(135deg,#ff6b6b,#8b0a50)', companyId: null, keyword: 'anime' },
+      crunchyroll:{ nom: 'CRUNCHYROLL',couleur: '#f47521', bg: 'linear-gradient(135deg,#f47521,#8b3a00)', companyId: null, keyword: 'crunchyroll' },
+      canal:      { nom: 'CANAL+',     couleur: '#aaa', bg: 'linear-gradient(135deg,#333,#111)', companyId: null, keyword: 'canal plus' },
+      arte:       { nom: 'ARTE',       couleur: '#cc0000', bg: 'linear-gradient(135deg,#c00,#600)', companyId: null, keyword: 'arte' },
+      starz:      { nom: 'STARZ',      couleur: '#aaa', bg: 'linear-gradient(135deg,#1a1a2e,#16213e)', companyId: 1403, keyword: 'starz' },
+      showtime:   { nom: 'SHOWTIME',   couleur: '#cc0000', bg: 'linear-gradient(135deg,#cc0000,#660000)', companyId: 530, keyword: 'showtime' },
+    }
+
+    const SAGAS = [
+      10194, // Star Wars
+      1241,  // Harry Potter
+      9764,  // Fast & Furious
+      86311, // Avengers
+      556,   // Spider-Man
+      2344,  // Matrix
+      8091,  // Alien
+      645,   // James Bond
+      328,   // Jurassic Park
+      87359, // Mission Impossible
+      263,   // Dark Knight
+      131296,// John Wick
+      295130,// Pirates des Caraïbes
+      8650,  // Transformers
+      9485,  // Fast Five
+      10,    // Star Trek
+      1570,  // Die Hard
+      468552,// Wonder Woman
+      374509,// Aquaman
+      304378,// Doctor Strange
+    ]
+
+    function getTitre(f) { return f.title || f.name || '' }
+    function getEtoiles(n) { const nb = Math.round((n/10)*5); return '★'.repeat(nb)+'☆'.repeat(5-nb) }
+
+    function afficherPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+      document.getElementById(id).classList.add('active')
+      window.scrollTo(0, 0)
+    }
+
+    function allerAccueil() { pagePrecedente = 'page-accueil'; afficherPage('page-accueil') }
+
+    function retourPrecedent() { afficherPage(pagePrecedente) }
+
+    // PAGE PLATEFORME
+    function allerPlateforme(key) {
+      const p = PLATEFORMES[key]
+      pagePrecedente = document.querySelector('.page.active').id
+      plateformeActuelle = key
+      platePage = 1
+      plateFiltreActuel = 'tout'
+      plateformeResultats = []
+
+      // Style hero
+      const hero = document.getElementById('plateforme-hero')
+      hero.style.background = p.bg
+      document.getElementById('plateforme-logo').textContent = p.nom
+      document.getElementById('plateforme-logo').style.color = p.couleur
+      document.getElementById('plateforme-tendances-titre').textContent = `🔥 Tendances ${p.nom}`
+      document.getElementById('plateforme-tendances').innerHTML = ''
+      document.getElementById('plateforme-grille').innerHTML = ''
+
+      // Filtres reset
+      document.querySelectorAll('.filtre-btn').forEach(b => b.classList.remove('active'))
+      document.querySelectorAll('.filtre-btn')[0].classList.add('active')
+
+      afficherPage('page-plateforme')
+
+      // Tendances
+      const urlTendances = p.companyId
+        ? `https://api.themoviedb.org/3/discover/movie?with_companies=${p.companyId}&language=fr-FR&sort_by=popularity.desc`
+        : `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(p.keyword)}&language=fr-FR`
+
+      fetch(urlTendances, { headers })
+        .then(r => r.json())
+        .then(d => afficherFilms(d.results, 'plateforme-tendances', null))
+
+      chargerGrillePlateforme(1)
+    }
+
+    function chargerGrillePlateforme(page) {
+      const p = PLATEFORMES[plateformeActuelle]
+      const grille = document.getElementById('plateforme-grille')
+
+      const fetchFilms = p.companyId
+        ? `https://api.themoviedb.org/3/discover/movie?with_companies=${p.companyId}&language=fr-FR&sort_by=popularity.desc&page=${page}`
+        : `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(p.keyword)}&language=fr-FR&page=${page}`
+
+      const fetchSeries = p.companyId
+        ? `https://api.themoviedb.org/3/discover/tv?with_companies=${p.companyId}&language=fr-FR&sort_by=popularity.desc&page=${page}`
+        : `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(p.keyword)}&language=fr-FR&page=${page}`
+
+      const promesses = []
+      if (plateFiltreActuel !== 'tv') promesses.push(fetch(fetchFilms, { headers }).then(r => r.json()))
+      if (plateFiltreActuel !== 'movie') promesses.push(fetch(fetchSeries, { headers }).then(r => r.json()))
+
+      Promise.all(promesses).then(results => {
+        results.forEach((d, i) => {
+          const type = plateFiltreActuel === 'tv' ? 'tv' : (plateFiltreActuel === 'movie' ? 'movie' : (i === 1 ? 'tv' : 'movie'))
+          d.results.forEach(film => {
+            if (!film.poster_path) return
+            film._type = type
+            plateformeResultats.push(film)
+          })
+        })
+        renderGrille()
+      })
+    }
+
+    function renderGrille() {
+      const grille = document.getElementById('plateforme-grille')
+      grille.innerHTML = ''
+      plateformeResultats.forEach(film => {
+        const titre = getTitre(film)
+        grille.innerHTML += `
+          <div class="film-card" onclick="ouvrirFilm(${film.id},'${film._type}')">
+            <img src="https://image.tmdb.org/t/p/w300${film.poster_path}" alt="${titre}">
+            <p>${titre}</p>
+          </div>
+        `
+      })
+    }
+
+    function filtrerPlateforme(type) {
+      plateFiltreActuel = type
+      platePage = 1
+      plateformeResultats = []
+      document.querySelectorAll('.filtre-btn').forEach(b => b.classList.remove('active'))
+      event.target.classList.add('active')
+      chargerGrillePlateforme(1)
+    }
+
+    function chargerPlusPage() {
+      platePage++
+      chargerGrillePlateforme(platePage)
+    }
+
+    function ouvrirSources() {
+      const ancien = document.getElementById('sources-overlay')
+      if (ancien) ancien.remove()
+      const overlay = document.createElement('div')
+      overlay.id = 'sources-overlay'
+      let html = `<div class="sources-modal"><h2>Changer de source <button onclick="document.getElementById('sources-overlay').remove()">✕</button></h2>`
+      let idx = 0
+      SOURCES.forEach(cat => {
+        html += `<div class="source-category"><div class="source-category-title">${cat.categorie}</div>`
+        cat.items.forEach(s => {
+          const isActive = idx === sourceActuelle
+          const bc = s.badge === 'VF' ? 'vf' : s.badge === 'VOSTFR' ? 'vostfr' : isActive ? 'actif' : ''
+          html += `<div class="source-item ${isActive?'active':''}" onclick="changerSource(${idx})">
+            <span class="source-item-name ${isActive?'active':''}">${s.nom}</span>
+            <span class="source-badge ${bc}">${isActive?'ACTIF':s.badge}</span>
+          </div>`
+          idx++
+        })
+        html += `</div>`
+      })
+      html += `</div>`
+      overlay.innerHTML = html
+      document.body.appendChild(overlay)
+    }
+
+    function changerSource(index) {
+      sourceActuelle = index
+      document.getElementById('sources-overlay').remove()
+      let idx = 0, url = null
+      for (const cat of SOURCES) {
+        for (const s of cat.items) {
+          if (idx === index) { url = s.url(filmActuelId, filmActuelType); break }
+          idx++
+        }
+        if (url) break
+      }
+      if (url) ouvrirLecteur(url)
+    }
+
+    function ouvrirLecteur(url) {
+      const ancien = document.getElementById('overlay')
+      if (ancien) ancien.remove()
+      const overlay = document.createElement('div')
+      overlay.id = 'overlay'
+      overlay.innerHTML = `
+        <button class="fermer" onclick="document.getElementById('overlay').remove()">✕</button>
+        <iframe src="${url}" allowfullscreen></iframe>
+      `
+      document.body.appendChild(overlay)
+    }
+
+    function ouvrirFilm(id, type) {
+      document.getElementById('search-results').style.display = 'none'
+      document.getElementById('search-input').value = ''
+      const p = document.querySelector('.page.active')
+      if (p) pagePrecedente = p.id
+      afficherPage('page-film')
+      document.getElementById('similaires').innerHTML = ''
+      filmActuelId = id; filmActuelType = type; sourceActuelle = 0
+
+      fetch(`https://api.themoviedb.org/3/${type}/${id}?language=fr-FR`, { headers })
+        .then(r => r.json())
+        .then(film => {
+          const isTV = type === 'tv'
+          document.getElementById('film-hero').style.backgroundImage = `url(https://image.tmdb.org/t/p/original${film.backdrop_path})`
+          document.getElementById('film-titre').textContent = getTitre(film)
+          document.getElementById('film-annee').textContent = (film.release_date||film.first_air_date||'').substring(0,4) + (film.runtime ? '  •  '+film.runtime+' min' : isTV ? '  •  '+(film.number_of_seasons||'')+' saison(s)' : '')
+          document.getElementById('film-synopsis').textContent = film.overview || ''
+          document.getElementById('film-type-badge').textContent = isTV ? '📺 Série' : '🎬 Film'
+          document.getElementById('film-etoiles').innerHTML = `<span style="color:#cc0000;font-size:1.1rem;">${getEtoiles(film.vote_average||0)}</span>`
+          document.getElementById('film-genres').innerHTML = (film.genres||[]).map(g=>`<span>${g.name}</span>`).join('')
+          document.getElementById('btn-lecture').onclick = () => ouvrirLecteur(SOURCES[0].items[0].url(id, type))
+        })
+
+      fetch(`https://api.themoviedb.org/3/${type}/${id}/similar?language=fr-FR`, { headers })
+        .then(r => r.json())
+        .then(d => afficherFilms(d.results, 'similaires', null))
+    }
+
+    const searchInput = document.getElementById('search-input')
+    const searchResults = document.getElementById('search-results')
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout)
+      const q = searchInput.value.trim()
+      if (q.length < 2) { searchResults.style.display = 'none'; return }
+      searchTimeout = setTimeout(() => {
+        fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(q)}&language=fr-FR`, { headers })
+          .then(r => r.json())
+          .then(d => {
+            const items = d.results.filter(f => f.poster_path && (f.media_type==='movie'||f.media_type==='tv')).slice(0,6)
+            if (!items.length) { searchResults.style.display = 'none'; return }
+            searchResults.innerHTML = items.map(f => `
+              <div class="search-result-item" onclick="ouvrirFilm(${f.id},'${f.media_type}')">
+                <img src="https://image.tmdb.org/t/p/w92${f.poster_path}" alt="${getTitre(f)}">
+                <div>
+                  <div class="search-result-titre">${getTitre(f)}</div>
+                  <div class="search-result-meta">${f.media_type==='tv'?'📺 Série':'🎬 Film'} • ${(f.release_date||f.first_air_date||'').substring(0,4)}</div>
+                </div>
+              </div>
+            `).join('')
+            searchResults.style.display = 'block'
+          })
+      }, 300)
+    })
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.search-bar')) searchResults.style.display = 'none'
+    })
+
+    function afficherSlide(i) {
+      const hero = document.getElementById('hero')
+      document.querySelectorAll('.hero-slide').forEach(s => s.remove())
+      const film = heroFilms[i]
+      const slide = document.createElement('div')
+      slide.className = 'hero-slide'
+      slide.style.backgroundImage = `url(https://image.tmdb.org/t/p/original${film.backdrop_path})`
+      slide.innerHTML = `
+        <div class="hero-content">
+          <h1 class="hero-title">${getTitre(film)}</h1>
+          <p class="hero-desc">${(film.overview||'').substring(0,200)}...</p>
+          <div class="hero-buttons">
+            <button class="btn-watch" onclick="ouvrirLecteur('https://vidsrc.to/embed/${film.media_type||'movie'}/${film.id}')">▶ Regarder</button>
+            <button class="btn-info" onclick="ouvrirFilm(${film.id},'${film.media_type||'movie'}')">ℹ️ Plus d'infos</button>
+          </div>
+        </div>
+      `
+      hero.insertBefore(slide, hero.firstChild)
+      requestAnimationFrame(() => requestAnimationFrame(() => slide.classList.add('active')))
+      document.querySelectorAll('.dot').forEach((d,j) => d.classList.toggle('active', j===i))
+      slideActuel = i
+    }
+
+    function changerSlide(dir) {
+      afficherSlide((slideActuel+dir+heroFilms.length)%heroFilms.length)
+      resetAutoSlide()
+    }
+
+    function resetAutoSlide() {
+      clearInterval(autoSlide)
+      autoSlide = setInterval(() => afficherSlide((slideActuel+1)%heroFilms.length), 6000)
+    }
+
+    function afficherFilms(results, id, badge) {
+      const c = document.getElementById(id)
+      if (!c) return
+      results.forEach(film => {
+        if (!film.poster_path) return
+        const titre = getTitre(film)
+        const type = film.media_type || (film.first_air_date ? 'tv' : 'movie')
+        c.innerHTML += `
+          <div class="film-card" onclick="ouvrirFilm(${film.id},'${type}')">
+            ${badge ? `<div class="badge">${badge}</div>` : ''}
+            <img src="https://image.tmdb.org/t/p/w300${film.poster_path}" alt="${titre}">
+            <p>${titre}</p>
+          </div>
+        `
+      })
+    }
+
+    function afficherTop10(results) {
+      const c = document.getElementById('top10')
+      results.slice(0,10).forEach((film, i) => {
+        if (!film.poster_path) return
+        const type = film.media_type || 'movie'
+        c.innerHTML += `
+          <div class="top10-card" onclick="ouvrirFilm(${film.id},'${type}')">
+            <div class="top10-number">${i+1}</div>
+            <img src="https://image.tmdb.org/t/p/w300${film.poster_path}" alt="${getTitre(film)}">
+          </div>
+        `
+      })
+    }
+
+    function chargerSagas() {
+      SAGAS.forEach(id => {
+        fetch(`https://api.themoviedb.org/3/collection/${id}?language=fr-FR`, { headers })
+          .then(r => r.json())
+          .then(d => {
+            if (!d.poster_path) return
+            const premier = d.parts ? d.parts.sort((a,b) => a.release_date > b.release_date ? 1 : -1)[0] : null
+            const c = document.getElementById('sagas')
+            c.innerHTML += `
+              <div class="film-card" onclick="ouvrirFilm(${premier ? premier.id : id},'movie')">
+                <div class="badge">SAGA</div>
+                <img src="https://image.tmdb.org/t/p/w300${d.poster_path}" alt="${d.name}">
+                <p>${d.name}</p>
+              </div>
+            `
+          })
+      })
+    }
+
+    // CHARGEMENT
+    fetch('https://api.themoviedb.org/3/trending/all/day?language=fr-FR', { headers })
+      .then(r => r.json())
+      .then(d => {
+        heroFilms = d.results.filter(f => f.backdrop_path).slice(0,8)
+        const dotsContainer = document.getElementById('dots')
+        heroFilms.forEach((_,i) => {
+          const dot = document.createElement('div')
+          dot.className = 'dot'+(i===0?' active':'')
+          dot.onclick = () => { afficherSlide(i); resetAutoSlide() }
+          dotsContainer.appendChild(dot)
+        })
+        afficherSlide(0)
+        resetAutoSlide()
+        afficherTop10(d.results)
+        afficherFilms(d.results, 'tendances', null)
+      })
+
+    chargerSagas()
+
+    fetch('https://api.themoviedb.org/3/movie/now_playing?language=fr-FR', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'derniers', '🆕'))
+
+    fetch('https://api.themoviedb.org/3/tv/on_the_air?language=fr-FR', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'dernieres-series', '🆕'))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=28&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'action', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=27&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'horreur', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=35&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'comedie', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=878&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'scifi', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=10749&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'romance', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=18&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'drame', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=53&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'thriller', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_genres=16&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'animation', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_original_language=fr&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'francais', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_original_language=ko&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'coreens', null))
+
+    fetch('https://api.themoviedb.org/3/discover/movie?with_original_language=ja&language=fr-FR&sort_by=popularity.desc', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'japonais', null))
+
+    fetch('https://api.themoviedb.org/3/movie/upcoming?language=fr-FR', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'upcoming', 'BIENTÔT'))
+
+    fetch('https://api.themoviedb.org/3/movie/top_rated?language=fr-FR', { headers })
+      .then(r => r.json()).then(d => afficherFilms(d.results, 'toprated', null))
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loader = document.getElementById('loader')
+        loader.style.opacity = '0'
+        setTimeout(() => loader.remove(), 500)
+      }, 800)
+    })
+  </script>
+
+</body>
+</html>
